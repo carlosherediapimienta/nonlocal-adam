@@ -40,7 +40,7 @@ class EulerMethod:
         
         # Integrar
         for i in range(n - 1):
-            dy = rhs(y=y[i], idx=i, *func_rhs)
+            dy = rhs(y[i], i, *func_rhs)
             y[i + 1] = y[i] + alpha * dy
         
         return y

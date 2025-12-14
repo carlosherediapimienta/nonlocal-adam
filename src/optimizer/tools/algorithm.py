@@ -100,7 +100,7 @@ class AlgorithmIDE:
         elif self.equation_order == 2:
             def system_rhs(z, idx, *func_rhs):
                 y, dy = z[0], z[1]
-                ddy = self.rhs_initial(idx=idx, *func_rhs)
+                ddy = self.rhs_initial(idx, *func_rhs)
                 return np.array([dy, ddy], dtype=DTYPE)
             return system_rhs
 
@@ -168,6 +168,8 @@ class AlgorithmIDE:
 
         last = err
         while err > self.global_tol:
+            self.iteration += 1
+
             # Under-relaxed update
             y_relax = self._mix(self.smoothing, y_cur, y_new)
 
@@ -198,11 +200,12 @@ class AlgorithmIDE:
                 self.smoothing = np.minimum(self.smooth_max, nxt)
             last = err
             y_cur = y_relax
-            self.iteration += 1
+            
 
-            if self.iteration % 20 == 0:
+            if not self.verbose and self.iteration % 20 == 0:
                 print(f"Iter {self.iteration:4d} │ err={err:.6e} │ smooth={self.smoothing:.4f}")
-
+            if self.verbose:
+                print(f"Iter {self.iteration:4d} │ err={err:.6e} │ smooth={self.smoothing:.4f}")
 
             if self.iteration >= self.max_iteration:
                 print("Max iterations. Stop.")
