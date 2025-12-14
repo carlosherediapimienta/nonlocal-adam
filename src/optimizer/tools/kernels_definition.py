@@ -17,20 +17,16 @@ def K_beta_second_order(
         Parameter alpha.
     """
     s = np.asarray(s, dtype=float)
-    kappa = np.sqrt(2 * beta - 1)
-    rho = np.sqrt(1 - 2 * beta)
-
+    
     if beta > 0.5:
-        if kappa is None:
-            raise ValueError("kappa must be provided when beta > 1/2.")
+        kappa = np.sqrt(2 * beta - 1)
         return (2.0 / kappa) * np.exp(-s / alpha) * np.sinh((kappa / alpha) * s)
 
     if np.isclose(beta, 0.5):
         return (2.0 * s / alpha) * np.exp(-s / alpha)
 
     # beta < 1/2
-    if rho is None:
-        raise ValueError("rho must be provided when beta < 1/2.")
+    rho = np.sqrt(1 - 2 * beta)
     return (2.0 / rho) * np.exp(-s / alpha) * np.sin((rho / alpha) * s)
 
 

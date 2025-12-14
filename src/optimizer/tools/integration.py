@@ -52,9 +52,6 @@ class IntegrationQuadrature:
 
         # Weighted sum with Jacobian factor
         res = sign * half * np.sum(self.wg * vals, axis=0)
-        
-        if self.verbose:
-            print(f"fixed_quad: a={lo} b={hi}  res={res}")
 
         # Treat near-zero-length intervals as zero to avoid spurious noise
         return np.where(np.abs(hi - lo) < self.tol, 0., res)

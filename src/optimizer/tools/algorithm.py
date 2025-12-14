@@ -17,7 +17,7 @@ class AlgorithmIDE:
       - integration via Gauss-Legendre quadrature
 
     Subclasses MUST implement:
-      * _build_stats(y) -> Tuple[Any, ...]
+      * _build_func_rhs(y) -> Tuple[Any, ...]
           Precompute any structures ("stats") needed to evaluate the RHS
           at all times, given the current iterate y(t).
 
@@ -51,7 +51,7 @@ class AlgorithmIDE:
     def __init__(self,
                  dL: Callable,
                  rhs: Callable,
-                 build_stats: Callable,
+                 build_func_rhs: Callable,
                  t_span: Tuple[float, float],
                  y0: Union[float, np.ndarray],
                  alpha: float,
@@ -61,7 +61,7 @@ class AlgorithmIDE:
 
         self.dL = dL
         self.rhs_initial = rhs  
-        self.build_stats = build_stats
+        self.build_func_rhs = build_func_rhs
 
         y0_arr = np.asarray(y0, dtype=DTYPE)
         if y0_arr.ndim == 0 or len(y0_arr) == 1:
@@ -98,19 +98,19 @@ class AlgorithmIDE:
         if self.equation_order == 1:
             return self.rhs_initial
         elif self.equation_order == 2:
-            def system_rhs(t, z, idx, *stats):
+            def system_rhs(z, idx, *func_rhs):
                 y, dy = z[0], z[1]
-                ddy = self.rhs_initial(t, y, idx, *stats)
+                ddy = self.rhs_initial(idx=idx, *func_rhs)
                 return np.array([dy, ddy], dtype=DTYPE)
             return system_rhs
 
     # ---------------------------------------------------------------
     def _integrate(self, alpha: float, y0, t_vec: np.ndarray, 
-                   rhs: Callable, stats: Tuple[Any, ...]) -> np.ndarray:
+                   rhs: Callable, func_rhs: Tuple[Any, ...]) -> np.ndarray:
         """
         Integra usando el método Euler configurado. 
         """
-        return self.euler_method.solve(alpha, y0, t_vec, rhs, stats)
+        return self.euler_method.solve(alpha=alpha, y0=y0, t_vec=t_vec, rhs=rhs, func_rhs=func_rhs)
 
     # ------------- error & smoothing -----------------------------------
     @staticmethod
@@ -126,8 +126,8 @@ class AlgorithmIDE:
     # -------------------------------------------------------------------
     def _step(self, y_current: np.ndarray) -> np.ndarray:
         """Run one full pass of the explicit Euler integrator."""
-        stats = self.build_stats(y_current)
-        y_next = self._integrate(self.alpha, self.y0, self.t, self.rhs, stats)
+        func_rhs = self.build_func_rhs(y_current)
+        y_next = self._integrate(self.alpha, self.y0, self.t, self.rhs, func_rhs)
         err = self._global_error(y_current, y_next)
         return y_next, err
 
@@ -155,14 +155,13 @@ class AlgorithmIDE:
             y_baseline = np.tile(self.y0, (n, 1))
 
         # Baseline solution without the non-local term
-        initial_stats = (
-            y_baseline,                      # y_fix: array of size n
-            np.zeros(n, dtype=DTYPE),        # m = 0: without first moment
-            np.zeros(n, dtype=DTYPE),        # v_sqrt = 0: without second moment
-            np.zeros(n, dtype=DTYPE),        # a_t = 0: makes rhs = 0
-            np.ones(n, dtype=DTYPE) * 1e-8   # eps_t > 0: to avoid division by zero
+        y_cur = self._integrate(
+            alpha=self.alpha,
+            y0=self.y0,
+            t_vec=self.t,
+            rhs=self.rhs, 
+            func_rhs=self.build_func_rhs(y_baseline)
         )
-        y_cur = self._integrate(self.alpha, self.y0, self.t, self.rhs, stats=initial_stats)
         y_new, err = self._step(y_cur)
         if self.verbose:
             print(f"Iter {self.iteration} – err {err}")
@@ -172,7 +171,7 @@ class AlgorithmIDE:
             # Under-relaxed update
             y_relax = self._mix(self.smoothing, y_cur, y_new)
 
-            # Re-integrate with stats from the relaxed iterate
+            # Re-integrate with func_rhs from the relaxed iterate
             y_new, err = self._step(y_relax)
 
             # ---------- safety / control logic ----------
@@ -192,19 +191,30 @@ class AlgorithmIDE:
                 except IndexError:
                     nxt = self.smooth_max
                     self._max_inc_hit = True
+                
+                if self.verbose:
+                    print(f"Error increased, adjusting smoothing: {self.smoothing:.4f} → {nxt:.4f}")
+                
                 self.smoothing = np.minimum(self.smooth_max, nxt)
             last = err
             y_cur = y_relax
             self.iteration += 1
 
             if self.iteration % 20 == 0:
-                print(f"Iter {self.iteration} – err {err}")
+                print(f"Iter {self.iteration:4d} │ err={err:.6e} │ smooth={self.smoothing:.4f}")
+
 
             if self.iteration >= self.max_iteration:
                 print("Max iterations. Stop.")
                 break
 
-        print(f"Last iter {self.iteration} – err {err}")
+        print(f"\n{'='*60}")
+        print(f"Convergence achieved!")
+        print(f"Final iteration: {self.iteration}")
+        print(f"Final error: {err:.6e}")
+        print(f"Final smoothing: {self.smoothing:.4f}")
+        print(f"{'='*60}\n")
+
         self.y = y_new
         self.global_error = err
         return self.t, y_new

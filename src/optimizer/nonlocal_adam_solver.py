@@ -5,6 +5,7 @@ from .tools.algorithm import AlgorithmIDE, DTYPE
 from .tools.integration import IntegrationQuadrature
 from .tools.kernels_definition import K_beta_first_order, K_beta_second_order
 from .tools.condition_v_positive import ConditionVPositive
+from .tools.paralelizacion import ParallelComputation
 
 class NonlocalSolverMomentumAdam:
     """
@@ -29,7 +30,8 @@ class NonlocalSolverMomentumAdam:
                  betas: Tuple[float, float] = (0.9, 0.999),
                  eps_base: float = 1e-8,
                  verbose: bool = False,
-                 quad_order: int = 1000):
+                 quad_order: int = 50,
+                 n_workers: int = -2):
         
         self.dL = dL
         self.beta1, self.beta2 = map(DTYPE, betas)
@@ -83,11 +85,11 @@ class NonlocalSolverMomentumAdam:
         self.lam1 = (1. - self.beta1) / self.alpha
         self.lam2 = (1. - self.beta2) / self.alpha
         
-        # Create the IDE solver with our specific RHS and stats builder
+        # Create the IDE solver with our specific RHS and func_rhs builder
         self.solver = AlgorithmIDE(
             dL=self.dL,
             rhs=self._rhs,
-            build_stats=self._build_stats,
+            build_func_rhs=self._build_func_rhs,
             t_span=t_span,
             y0=y0,
             alpha=alpha,
@@ -96,19 +98,31 @@ class NonlocalSolverMomentumAdam:
         )
 
         self.t = self.solver.t
+        self.n_points = len(self.t)
 
         # Precompute weight matrices for the kernels
         dt = self.t[:, None] - self.t[None, :]
         self._tri = dt >= 0
-        self._exp1 = np.exp(-self.lam1 * dt)
-        self._exp2 = np.exp(-self.lam2 * dt)
+
+        with np.errstate(over='ignore'):  
+            self._exp1 = np.exp(-self.lam1 * dt)
+            self._exp2 = np.exp(-self.lam2 * dt)
+
+        self._exp1 = np.where(self._tri, self._exp1, 0.0)
+        self._exp2 = np.where(self._tri, self._exp2, 0.0)
+
+        self.parallel = ParallelComputation(
+            n_workers=n_workers,
+            min_items_for_parallel=100,
+            verbose=self.verbose
+        )
         
     def _interp(self, y: np.ndarray):
         """Cubic interpolator over the current time grid."""
         return lambda t: scipy_interp1d(self.t, y, kind='cubic', 
                                         fill_value='extrapolate')(t)
 
-    def _build_stats(self, y: np.ndarray) -> Tuple:
+    def _build_func_rhs(self, y: np.ndarray) -> Tuple:
         """
         Precompute along the current iterate y(t):
           - m(t): exponential moving average of g(t)
@@ -120,9 +134,17 @@ class NonlocalSolverMomentumAdam:
         (y, m, v_sqrt, a_t, eps_t)
         """
         if self.verbose:
+            print(f"\n{'='*60}")
+            print(f"Building functional RHS (iteration {getattr(self.solver, 'iteration', 0)})...")
+            print(f"{'='*60}")
             print(f"¿NaNs in y?: {np.isnan(y).any()}")
 
-        interp = self._interp(y)
+        if self.equation_order == 2:
+            y_pos = y[:, 0]
+        else: 
+            y_pos = y
+
+        interp = self._interp(y_pos)
 
         def g_fun(tau):
             # g(tau) = dL(y(tau))
@@ -139,23 +161,38 @@ class NonlocalSolverMomentumAdam:
             f_m = lambda tau: self.K1(t - tau) * g_fun(tau)
             f_v = lambda tau: self.K2(t - tau) * g_fun(tau)**2
             
-            # Use the integrator instance
             m_k = self.integrator.integrate(f_m, 1e-12, t)
             v_k = self.integrator.integrate(f_v, 1e-12, t)
-            
-            if self.verbose:
-                print(f"step values --> t={t}  m={m_k}  v={v_k}")
+
             return m_k, v_k
 
-        # Vectorized evaluation over the solver grid
-        moments = np.array([_moments_single(t) for t in self.t])
+
+        if self.verbose:
+            print(f"Computing moments for {len(self.t)} time points...")
+            import time
+            start_time = time.time()
+
+        ## Parallel computation of moments
+        moments_list = self.parallel.map(_moments_single, self.t)
+        moments = np.array(moments_list)
+        ##
+
+        if self.verbose:
+            elapsed = time.time() - start_time
+            print(f"Moments computed in {elapsed:.2f}s")
+
         m = moments[:, 0]
         v = moments[:, 1]
 
-        r = np.array([g_fun(tk)**2 for tk in self.t], dtype=DTYPE)
+        r = g_fun(self.t)**2
         viol = self.condition_v_positive(beta2=self.beta2, r=r, t=self.t, v=v)
+
         if viol.any():
-            print(f"Violation of condition v positive detected at time {self.t[viol]}")
+            n_viol = np.sum(viol)
+            print(f"WARNING: {n_viol} violations of v>0 condition detected")
+            if self.verbose:
+                print(f"   First violation at t={self.t[viol][0]:.6f}")
+                print(f"   Last violation at t={self.t[viol][-1]:.6f}")
 
 
         if self.verbose:
@@ -168,29 +205,22 @@ class NonlocalSolverMomentumAdam:
         self._last_v = np.stack((self.t, v), axis=1)
 
         v_sqrt = np.sqrt(np.maximum(v, 0.))
-        a_t = np.array([self._alpha_t(t) for t in self.t])
-        eps_t = np.array([self._eps_t(t) for t in self.t])
+        a_t = self._alpha_t(self.t)
+        eps_t = self._eps_t(self.t)
 
-        return (y, m, v_sqrt, a_t, eps_t)
+        return (m, v_sqrt, a_t, eps_t)
 
-    def _rhs(self, t: float, y_prev: float, idx: int, 
-             y_fix: np.ndarray, m: np.ndarray, v_sqrt: np.ndarray, 
+    def _rhs(self, idx: int,  m: np.ndarray, v_sqrt: np.ndarray, 
              a_t: np.ndarray, eps_t: np.ndarray) -> float:
         """
         Right-hand side for the explicit Euler step:
 
-            dot theta(t) = f(t, theta(t)) - alpha(t) m(t) / ( sqrt{v(t)} + eps(t) )
+            .. = - alpha(t) m(t) / ( sqrt{v(t)} + eps(t) )
 
         Parameters
         ----------
-        t : float
-            Current time.
-        y_prev : float
-            Previous value.
         idx : int
             Index of `t` on the solver time grid.
-        y_fix : np.ndarray
-            Current iterate y(t).
         m : np.ndarray
             Samples of the first moment along the grid.
         v_sqrt : np.ndarray
@@ -205,10 +235,6 @@ class NonlocalSolverMomentumAdam:
         float
             dy/dt - Instantaneous rate used by the Euler integrator.
         """
-        # Interpolate y at the exact time t
-        y_val = scipy_interp1d(self.t, y_fix, kind='cubic', 
-                               fill_value='extrapolate')(t)
-
         # Denominator sqrt{v(t)} + eps(t) for stability
         denom = v_sqrt[idx] + eps_t[idx]
 

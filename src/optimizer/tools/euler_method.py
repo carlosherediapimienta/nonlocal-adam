@@ -24,7 +24,7 @@ class EulerMethod:
                  y0: Union[float, np.ndarray],
                  t_vec: np.ndarray,
                  rhs: Callable,
-                 stats: Tuple[Any, ...]) -> np.ndarray:
+                 func_rhs: Tuple[Any, ...]) -> np.ndarray:
         """Forward Euler: y_{n+1} = y_n + h * f(t_n, y_n)"""
         alpha = DTYPE(alpha)
         is_scalar = np.ndim(y0) == 0
@@ -40,7 +40,7 @@ class EulerMethod:
         
         # Integrar
         for i in range(n - 1):
-            dy = rhs(t_vec[i], y[i], i, *stats)
+            dy = rhs(y=y[i], idx=i, *func_rhs)
             y[i + 1] = y[i] + alpha * dy
         
         return y
@@ -50,7 +50,7 @@ class EulerMethod:
                   y0: Union[float, np.ndarray],
                   t_vec: np.ndarray,
                   rhs: Callable,
-                  stats: Tuple[Any, ...] = ()) -> np.ndarray:
+                  func_rhs: Tuple[Any, ...] = ()) -> np.ndarray:
         """
         Integra y' = rhs(t, y, ...) sobre t_vec.
         
@@ -63,16 +63,16 @@ class EulerMethod:
         t_vec : ndarray
             Tiempos de evaluación.
         rhs : Callable
-            Lado derecho: rhs(t, y, idx, *stats) -> dy/dt
-        stats : tuple
-            Parámetros extra para rhs.
+            Lado derecho: rhs(y, idx, *func_rhs) -> dy/dt
+        func_rhs : tuple
+            Funciones extra para rhs.
         
         Returns
         -------
         y_hist : ndarray
             Solución en cada tiempo.
         """
-        return self._forward(alpha, y0, t_vec, rhs, stats)
+        return self._forward(alpha, y0, t_vec, rhs, func_rhs)
     
 
     
