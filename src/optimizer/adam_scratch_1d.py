@@ -1,7 +1,7 @@
 from typing import Callable, Tuple
 import numpy as np
 
-class AdamScratch2D:
+class AdamScratch1D:
     """
     Scalar Adam optimizer from scratch.
 
@@ -38,27 +38,28 @@ class AdamScratch2D:
         self.epsilon = epsilon
         self.dL = dL
         self.epochs = epochs
-        self.global_error_tolerance = 1e-5  # placeholder; not used to stop
         self.__reset_state__()
 
     # Private method to reset the optimizer state and histories
     def __reset_state__(self):
         """Reset optimizer state and histories."""
-        self.m = np.array([0.0, 0.0])
-        self.v = np.array([0.0, 0.0])
+        self.m = 0.0
+        self.v = 0.0
         self.iteration = 1
-        self.theta_result = []
-        self.m_result = []
-        self.v_result = []
+        self.theta_history = []
+        self.m_history = []
+        self.v_history = []
 
     @staticmethod
-    def __global_error__(theta_new: np.ndarray, theta_old: np.ndarray) -> float:
+    def __global_error__(theta_new: float, theta_old: float) -> float:
         """Absolute difference |theta_new - theta_old|; handy as a progress metric."""
-        diff = theta_new - theta_old
-        return np.linalg.norm(diff)
+        return abs(theta_new - theta_old)
 
     # Public method to solve the optimization problem
-    def solve(self, theta_initial: np.ndarray, function_parameters: Tuple[float, float]) -> Tuple[list[np.ndarray], list[np.ndarray], list[np.ndarray], int]:
+    def solve(self,
+    theta_initial: float,
+    function_parameters: Tuple[float, ...] = ()
+    ) -> Tuple[list[float], list[float], list[float], int]:
             """
             Run Adam for `epochs` steps starting from `theta_initial`.
 
@@ -75,16 +76,16 @@ class AdamScratch2D:
             - If `weight_decay != 0`, apply decoupled weight decay before subtracting `update`.
             """
             self.__reset_state__()
-            theta = np.array([float(theta_initial[0]), float(theta_initial[1])])
+            theta = float(theta_initial)
 
             while self.iteration <= self.epochs:
                 # Log histories 
-                self.theta_result.append([theta[0], theta[1]])
-                self.m_result.append([self.m[0], self.m[1]])
-                self.v_result.append([self.v[0], self.v[1]])
+                self.theta_history.append(theta)
+                self.m_history.append(self.m)
+                self.v_history.append(self.v)
 
-                theta_old = theta.copy()
-                dL_value = np.array(self.dL(function_parameters, theta))
+                theta_old = theta
+                dL_value = self.dL(x=theta, function_parameters=function_parameters)
 
                 # Adam moment updates
                 self.m = self.beta1 * self.m + (1 - self.beta1) * dL_value
@@ -99,10 +100,10 @@ class AdamScratch2D:
 
                 global_error = float(self.__global_error__(theta_new=theta, theta_old=theta_old))
                 if self.iteration % 50 == 0:
-                    print(f'Epoch: {self.iteration}, Error: {global_error:.6e}')
+                    print(f'Epoch: {self.iteration}, theta={theta:.6e}, Error: {global_error:.6e}')
 
                 self.iteration += 1
 
             print(f'Last epoch: {self.iteration-1}, Error: {global_error:.6e}')
 
-            return self.theta_result, self.m_result, self.v_result, self.iteration
+            return self.theta_history, self.m_history, self.v_history, self.iteration

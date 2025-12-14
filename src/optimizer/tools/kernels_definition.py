@@ -20,7 +20,25 @@ def K_beta_second_order(
     
     if beta > 0.5:
         kappa = np.sqrt(2 * beta - 1)
-        return (2.0 / kappa) * np.exp(-s / alpha) * np.sinh((kappa / alpha) * s)
+
+        # Original: (2/κ) × exp(-s/α) × sinh(κs/α)
+        # Extended: (2/κ) × exp(-s/α) × [exp(κs/α) - exp(-κs/α)] / 2
+        #          = [exp(s(κ-1)/α) - exp(-s(κ+1)/α)] / κ
+    
+        exp_arg_pos = s * (kappa - 1) / alpha  # s(κ-1)/α
+        exp_arg_neg = -s * (kappa + 1) / alpha  # -s(κ+1)/α
+        
+        with np.errstate(over='ignore', invalid='ignore'):
+            term_pos = np.exp(exp_arg_pos)
+            term_neg = np.exp(exp_arg_neg)
+        
+        result = (term_pos - term_neg) / kappa
+        
+        overflow_mask = np.isinf(term_pos) | np.isnan(result)
+        if np.any(overflow_mask):
+            result[overflow_mask] = np.inf if kappa > 1 else 0.0
+        
+        return result
 
     if np.isclose(beta, 0.5):
         return (2.0 * s / alpha) * np.exp(-s / alpha)

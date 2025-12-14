@@ -2,9 +2,13 @@ import numpy as np
 from typing import Tuple
 
 ## Functions for the analysis
-
-def dL_quadratic(function_parameters: Tuple[float, float], theta: np.ndarray) -> np.ndarray:
+def dL_rosenbrock_1d(
+    x: np.ndarray,
+    function_parameters: Tuple[float, ...] = ()
+) -> np.ndarray:
     """
-    Gradient of the quadratic function: L(theta) = lambda1 * theta[0]**2 + lambda2 * theta[1]**2.
+    Gradient of Rosenbrock 1D:
+    L(x) = (1 - x)^2 + a*(x^2 - 1)^2
     """
-    return np.array([function_parameters[0] * theta[0], function_parameters[1] * theta[1]])
+    (a,) = function_parameters
+    return 2*(x - 1) + 4*a*x*(x**2 - 1)
