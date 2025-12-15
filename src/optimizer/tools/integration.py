@@ -1,6 +1,6 @@
 from typing import Callable
 import numpy as np
-from scipy.integrate import fixed_quad, quad
+from scipy.integrate import fixed_quad
 
 class IntegrationQuadrature:
     """
