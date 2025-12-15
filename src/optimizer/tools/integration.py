@@ -1,5 +1,6 @@
 from typing import Callable
 import numpy as np
+from scipy.integrate import fixed_quad, quad
 
 class IntegrationQuadrature:
     """
@@ -18,7 +19,6 @@ class IntegrationQuadrature:
         self.n = n
         self.tol = tol
         self.verbose = verbose
-        self.xg, self.wg = np.polynomial.legendre.leggauss(n)
     
     def integrate(self, fun: Callable, lo: float, hi: float) -> float:
         """
@@ -38,21 +38,10 @@ class IntegrationQuadrature:
         float
             Integral value.
         """
-        # Ensure correct orientation and keep track of sign if bounds reversed
-        sign = np.where(hi < lo, -1., 1.)
-        lo, hi = np.minimum(lo, hi), np.maximum(lo, hi)
 
-        # Affine map from [-1, 1] to [lo, hi]
-        mid = 0.5 * (hi + lo)
-        half = 0.5 * (hi - lo)
-        pts = mid + half * self.xg
+        if np.abs(hi - lo) < self.tol:
+            return 0.
 
-        # Evaluate integrand at quadrature nodes
-        vals = np.array([fun(pt) for pt in pts])
-
-        # Weighted sum with Jacobian factor
-        res = sign * half * np.sum(self.wg * vals, axis=0)
-
-        # Treat near-zero-length intervals as zero to avoid spurious noise
-        return np.where(np.abs(hi - lo) < self.tol, 0., res)
+        result, _ = fixed_quad(fun, lo, hi, n=self.n)
     
+        return result

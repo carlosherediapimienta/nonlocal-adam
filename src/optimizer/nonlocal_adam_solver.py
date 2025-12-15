@@ -98,18 +98,6 @@ class NonlocalSolverMomentumAdam:
         )
 
         self.t = self.solver.t
-        self.n_points = len(self.t)
-
-        # Precompute weight matrices for the kernels
-        dt = self.t[:, None] - self.t[None, :]
-        self._tri = dt >= 0
-
-        with np.errstate(over='ignore'):  
-            self._exp1 = np.exp(-self.lam1 * dt)
-            self._exp2 = np.exp(-self.lam2 * dt)
-
-        self._exp1 = np.where(self._tri, self._exp1, 0.0)
-        self._exp2 = np.where(self._tri, self._exp2, 0.0)
 
         self.parallel = ParallelComputation(
             n_workers=n_workers,
@@ -161,11 +149,10 @@ class NonlocalSolverMomentumAdam:
             f_m = lambda tau: self.K1(t - tau) * g_fun(tau)
             f_v = lambda tau: self.K2(t - tau) * g_fun(tau)**2
             
-            m_k = self.integrator.integrate(f_m, 1e-12, t)
-            v_k = self.integrator.integrate(f_v, 1e-12, t)
+            m_k = self.lam1 * self.integrator.integrate(f_m, 1e-12, t)
+            v_k = self.lam2 * self.integrator.integrate(f_v, 1e-12, t)
 
             return m_k, v_k
-
 
         if self.verbose:
             print(f"Computing moments for {len(self.t)} time points...")
