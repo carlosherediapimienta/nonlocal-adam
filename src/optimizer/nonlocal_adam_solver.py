@@ -108,8 +108,7 @@ class NonlocalSolverMomentumAdam:
         
     def _interp(self, y: np.ndarray):
         """Cubic interpolator over the current time grid."""
-        kind = 'linear'
-        return lambda t: scipy_interp1d(self.t, y, kind=kind, 
+        return lambda t: scipy_interp1d(self.t, y, kind='cubic', 
                                         fill_value='extrapolate')(t)
 
     def _build_func_rhs(self, y: np.ndarray) -> Tuple:
@@ -148,17 +147,9 @@ class NonlocalSolverMomentumAdam:
                 print(f"  ⚠️ PRIMER NO-FINITO en idx={first_bad}, t={self.t[first_bad]:.6f}")
                 print(f"    y_pos[{first_bad-2}:{first_bad+3}] = {y_pos[max(0,first_bad-2):first_bad+3]}")
             
-            # Test interpolador en algunos puntos
-            test_times = [self.alpha, self.alpha * 2, self.t[1], self.t[5]]
-            for tt in test_times:
-                if tt <= self.t[-1]:
-                    y_interp = interp(tt)
-                    g_val = self.dL(y_interp)
-                    print(f"  t={tt:.6f}: interp(t)={y_interp:.6e}, dL(interp)={g_val:.6e}")
             print(f"--- FIN DEBUG ---\n")
 
         def g_fun(tau):
-            # g(tau) = dL(y(tau))
             return self.dL(interp(tau)) 
         
         def _moments_single(t):
