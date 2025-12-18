@@ -85,10 +85,11 @@ class NonlocalSolverMomentumAdam:
         self.lam1 = (1. - self.beta1) / self.alpha
         self.lam2 = (1. - self.beta2) / self.alpha
         
+        rhs = self._rhs if self.equation_order == 1 else self._rhs_inertial
         # Create the IDE solver with our specific RHS and func_rhs builder
         self.solver = AlgorithmIDE(
             dL=self.dL,
-            rhs=self._rhs,
+            rhs=rhs,
             build_func_rhs=self._build_func_rhs,
             t_span=t_span,
             y0=y0,
@@ -107,7 +108,8 @@ class NonlocalSolverMomentumAdam:
         
     def _interp(self, y: np.ndarray):
         """Cubic interpolator over the current time grid."""
-        return lambda t: scipy_interp1d(self.t, y, kind='cubic', 
+        kind = 'linear'
+        return lambda t: scipy_interp1d(self.t, y, kind=kind, 
                                         fill_value='extrapolate')(t)
 
     def _build_func_rhs(self, y: np.ndarray) -> Tuple:
@@ -125,7 +127,7 @@ class NonlocalSolverMomentumAdam:
             print(f"\n{'='*60}")
             print(f"Building functional RHS (iteration {getattr(self.solver, 'iteration', 0)})...")
             print(f"{'='*60}")
-            print(f"¿NaNs in y?: {np.isnan(y).any()}")
+            print(f"¿No finitos en y?: {~np.isfinite(y).all()} (NaN: {np.isnan(y).any()}, Inf: {np.isinf(y).any()})")
 
         if self.equation_order == 2:
             y_pos = y[:, 0]
@@ -133,6 +135,27 @@ class NonlocalSolverMomentumAdam:
             y_pos = y
 
         interp = self._interp(y_pos)
+
+        if self.verbose:
+            print(f"\n--- DEBUG interpolador ---")
+            print(f"y_pos shape: {y_pos.shape}, dtype: {y_pos.dtype}")
+            print(f"y_pos[:5]: {y_pos[:5]}")
+            print(f"y_pos finitos: {np.isfinite(y_pos).all()}")
+
+            if not np.isfinite(y_pos).all():
+                bad_idx = np.where(~np.isfinite(y_pos))[0]
+                first_bad = bad_idx[0]
+                print(f"  ⚠️ PRIMER NO-FINITO en idx={first_bad}, t={self.t[first_bad]:.6f}")
+                print(f"    y_pos[{first_bad-2}:{first_bad+3}] = {y_pos[max(0,first_bad-2):first_bad+3]}")
+            
+            # Test interpolador en algunos puntos
+            test_times = [self.alpha, self.alpha * 2, self.t[1], self.t[5]]
+            for tt in test_times:
+                if tt <= self.t[-1]:
+                    y_interp = interp(tt)
+                    g_val = self.dL(y_interp)
+                    print(f"  t={tt:.6f}: interp(t)={y_interp:.6e}, dL(interp)={g_val:.6e}")
+            print(f"--- FIN DEBUG ---\n")
 
         def g_fun(tau):
             # g(tau) = dL(y(tau))
@@ -144,15 +167,27 @@ class NonlocalSolverMomentumAdam:
             For very small t, short-circuit to (0, 0) to avoid boundary issues.
             """
             if t < 1e-12:
-                return DTYPE(0.), DTYPE(0.)
+                return DTYPE(0.), DTYPE(0.), None
             
             f_m = lambda tau: self.K1(t - tau) * g_fun(tau)
             f_v = lambda tau: self.K2(t - tau) * g_fun(tau)**2
             
-            m_k = self.lam1 * self.integrator.integrate(f_m, 1e-12, t)
-            v_k = self.lam2 * self.integrator.integrate(f_v, 1e-12, t)
+            m_k = self.lam1 * self.integrator.integrate(f_m, self.alpha, t)
+            v_k = self.lam2 * self.integrator.integrate(f_v, self.alpha, t)
 
-            return m_k, v_k
+            diag = None
+            if not np.isfinite(m_k) or not np.isfinite(v_k) or np.abs(m_k) > 1e10 or np.abs(v_k) > 1e10:
+                g_at_t = g_fun(t)
+                diag = {
+                    't': t,
+                    'm_k': m_k,
+                    'v_k': v_k,
+                    'g(t)': g_at_t,
+                    'K1(0)': self.K1(0),
+                    'K2(0)': self.K2(0),
+                }
+
+            return m_k, v_k, diag
 
         if self.verbose:
             print(f"Computing moments for {len(self.t)} time points...")
@@ -161,8 +196,16 @@ class NonlocalSolverMomentumAdam:
 
         ## Parallel computation of moments
         moments_list = self.parallel.map(_moments_single, self.t)
-        moments = np.array(moments_list)
+        moments = np.array([(r[0], r[1]) for r in moments_list])
+        diagnostics = [r[2] for r in moments_list if r[2] is not None]
         ##
+
+        if self.verbose and diagnostics:
+            print(f"\n{len(diagnostics)} problemas detectados en momentos:")
+            for i, d in enumerate(diagnostics[:5]):
+                print(f"t={d['t']:.6f}: m={d['m_k']:.3e}, v={d['v_k']:.3e}, g(t)={d['g(t)']:.3e}")
+            if len(diagnostics) > 5:
+                print(f"... y {len(diagnostics)-5} más")
 
         if self.verbose:
             elapsed = time.time() - start_time
@@ -197,7 +240,7 @@ class NonlocalSolverMomentumAdam:
 
         return (m, v_sqrt, a_t, eps_t)
 
-    def _rhs(self, idx: int,  m: np.ndarray, v_sqrt: np.ndarray, 
+    def _rhs(self, y_prev, idx: int,  m: np.ndarray, v_sqrt: np.ndarray, 
              a_t: np.ndarray, eps_t: np.ndarray) -> float:
         """
         Right-hand side for the explicit Euler step:
@@ -227,6 +270,20 @@ class NonlocalSolverMomentumAdam:
 
         # Combine local dynamics with normalized moment term
         return - a_t[idx] * (m[idx] / denom)
+
+    def _rhs_inertial(self, z_prev, idx: int,
+                  m: np.ndarray, v_sqrt: np.ndarray,
+                  a_t: np.ndarray, eps_t: np.ndarray) -> float:
+
+        theta, dtheta = z_prev[0], z_prev[1]
+
+        denom = v_sqrt[idx] + eps_t[idx]
+        T = m[idx] / denom  # m/(sqrt(v)+eps)
+
+        update = dtheta + a_t[idx] * T
+        result = 2.0 * update / self.alpha
+        
+        return result
     
     def solve(self):
         """

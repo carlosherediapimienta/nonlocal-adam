@@ -8,16 +8,11 @@ DTYPE = np.float64
 
 class EulerMethod:
     """
-    Integrador Euler explícito para EDOs de 1º y 2º orden.
-    
-    - order=1: Forward Euler (primer orden)
-    - order=2: Midpoint Euler (segundo orden)
+    Integrador Euler explícito para EDOs.
     """
     
-    def __init__(self, order: Literal[1, 2] = 1):
-        if order not in [1, 2]:
-            raise ValueError(f"order must be 1 or 2, got {order}")
-        self.order = order
+    def __init__(self):
+        pass
 
     def _forward(self,
                  alpha: float,

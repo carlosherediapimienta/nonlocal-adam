@@ -38,7 +38,7 @@ class AlgorithmIDE:
     lambda_ : DTYPE
         Optional model parameter exposed to subclasses.
     smoothing : DTYPE
-        Current relaxation factor s in y_next = s*y_new + (1-s)*y_cur.
+        Current relaxation factor s in y_relax = s*y_cur + (1-s)*y_new.
     global_tol : float
         Convergence tolerance for the global error metric.
     max_iteration : int
@@ -76,7 +76,7 @@ class AlgorithmIDE:
             raise ValueError(f"Invalid initial condition length: {len(y0_arr)}. Must be 1 or 2.")
 
         self.rhs = self._create_system_rhs()
-        self.euler_method = EulerMethod(order=self.equation_order)
+        self.euler_method = EulerMethod()
 
         self.alpha = DTYPE(alpha)
         self.verbose = verbose
@@ -100,7 +100,7 @@ class AlgorithmIDE:
         elif self.equation_order == 2:
             def system_rhs(z, idx, *func_rhs):
                 y, dy = z[0], z[1]
-                ddy = self.rhs_initial(idx, *func_rhs)
+                ddy = self.rhs_initial(z, idx, *func_rhs)
                 return np.array([dy, ddy], dtype=DTYPE)
             return system_rhs
 
@@ -154,6 +154,11 @@ class AlgorithmIDE:
         else:
             y_baseline = np.tile(self.y0, (n, 1))
 
+        # ---- convergence bookkeeping ----
+        converged = False
+        stop_reason = None
+        last = np.inf
+
         # Baseline solution without the non-local term
         y_cur = self._integrate(
             alpha=self.alpha,
@@ -167,6 +172,7 @@ class AlgorithmIDE:
             print(f"Iter {self.iteration} – err {err}")
 
         last = err
+
         while err > self.global_tol:
             self.iteration += 1
 
@@ -178,9 +184,9 @@ class AlgorithmIDE:
 
             # ---------- safety / control logic ----------
             if np.isnan(err) or np.isinf(err):
-                print("Divergence (NaN / Inf). Abort.")
+                stop_reason = "Divergence (NaN/Inf)"
                 break
-            
+
             # If error worsens, increase smoothing factor (toward 1)
             if err > last:
                 if self._max_inc_hit:
@@ -208,11 +214,15 @@ class AlgorithmIDE:
                 print(f"Iter {self.iteration:4d} │ err={err:.6e} │ smooth={self.smoothing:.4f}")
 
             if self.iteration >= self.max_iteration:
-                print("Max iterations. Stop.")
+                stop_reason = "Max iterations"
                 break
 
+        converged = (err <= self.global_tol)
         print(f"\n{'='*60}")
-        print(f"Convergence achieved!")
+        if converged:
+            print("Convergence achieved!")
+        else:
+            print(f"Stopped: {stop_reason}")
         print(f"Final iteration: {self.iteration}")
         print(f"Final error: {err:.6e}")
         print(f"Final smoothing: {self.smoothing:.4f}")
