@@ -99,7 +99,7 @@ class AlgorithmIDE:
             return self.rhs_initial
         elif self.equation_order == 2:
             def system_rhs(z, idx, *func_rhs):
-                y, dy = z[0], z[1]
+                dy = z[1]
                 ddy = self.rhs_initial(z, idx, *func_rhs)
                 return np.array([dy, ddy], dtype=DTYPE)
             return system_rhs
@@ -148,11 +148,6 @@ class AlgorithmIDE:
            when the error rises (simple backoff strategy).
         """
         self.iteration = 0
-        n = len(self.t)
-        if self.equation_order == 1:
-            y_baseline = np.full(n, self.y0, dtype=DTYPE)
-        else:
-            y_baseline = np.tile(self.y0, (n, 1))
 
         # ---- convergence bookkeeping ----
         converged = False
@@ -160,13 +155,16 @@ class AlgorithmIDE:
         last = np.inf
 
         # Baseline solution without the non-local term
+        zeros = np.zeros_like(self.t)
+        func_rhs_zero = (zeros, zeros, np.ones_like(self.t), 1e-8*np.ones_like(self.t))
         y_cur = self._integrate(
             alpha=self.alpha,
             y0=self.y0,
             t_vec=self.t,
             rhs=self.rhs, 
-            func_rhs=self.build_func_rhs(y_baseline)
+            func_rhs=func_rhs_zero
         )
+
         y_new, err = self._step(y_cur)
         if self.verbose:
             print(f"Iter {self.iteration} – err {err}")

@@ -70,7 +70,7 @@ class NonlocalSolverMomentumAdam:
         
         
         # Bias-correction factors (continuous-time analogs)
-        self._alpha_t = lambda t: np.where(
+        self._eta_t = lambda t: np.where(
             t <= 1e-12,
             1.,
             np.sqrt(1. - self.beta2 ** (t / self.alpha)) / (1. - self.beta1 ** (t / self.alpha))
@@ -85,7 +85,7 @@ class NonlocalSolverMomentumAdam:
         self.lam1 = (1. - self.beta1) / self.alpha
         self.lam2 = (1. - self.beta2) / self.alpha
         
-        rhs = self._rhs if self.equation_order == 1 else self._rhs_inertial
+        rhs = self._rhs_first_order if self.equation_order == 1 else self._rhs_second_order
         # Create the IDE solver with our specific RHS and func_rhs builder
         self.solver = AlgorithmIDE(
             dL=self.dL,
@@ -122,6 +122,7 @@ class NonlocalSolverMomentumAdam:
         -------
         (y, m, v_sqrt, a_t, eps_t)
         """
+
         if self.verbose:
             print(f"\n{'='*60}")
             print(f"Building functional RHS (iteration {getattr(self.solver, 'iteration', 0)})...")
@@ -226,12 +227,12 @@ class NonlocalSolverMomentumAdam:
         self._last_v = np.stack((self.t, v), axis=1)
 
         v_sqrt = np.sqrt(np.maximum(v, 0.))
-        a_t = self._alpha_t(self.t)
+        eta_t = self._eta_t(self.t)
         eps_t = self._eps_t(self.t)
 
-        return (m, v_sqrt, a_t, eps_t)
+        return (m, v_sqrt, eta_t, eps_t)
 
-    def _rhs(self, y_prev, idx: int,  m: np.ndarray, v_sqrt: np.ndarray, 
+    def _rhs_first_order(self, y_prev, idx: int,  m: np.ndarray, v_sqrt: np.ndarray, 
              a_t: np.ndarray, eps_t: np.ndarray) -> float:
         """
         Right-hand side for the explicit Euler step:
@@ -256,25 +257,22 @@ class NonlocalSolverMomentumAdam:
         float
             dy/dt - Instantaneous rate used by the Euler integrator.
         """
-        # Denominator sqrt{v(t)} + eps(t) for stability
-        denom = v_sqrt[idx] + eps_t[idx]
 
-        # Combine local dynamics with normalized moment term
-        return - a_t[idx] * (m[idx] / denom)
+        T = m[idx] / (v_sqrt[idx] + eps_t[idx])
+        return - a_t[idx] * T
 
-    def _rhs_inertial(self, z_prev, idx: int,
+    def _rhs_second_order(self, z_prev, idx: int,
                   m: np.ndarray, v_sqrt: np.ndarray,
-                  a_t: np.ndarray, eps_t: np.ndarray) -> float:
+                  eta_t: np.ndarray, eps_t: np.ndarray) -> float:
 
         theta, dtheta = z_prev[0], z_prev[1]
 
-        denom = v_sqrt[idx] + eps_t[idx]
-        T = m[idx] / denom  # m/(sqrt(v)+eps)
+        j = idx + 1
+        if j >= len(m):
+            j = len(m) - 1
 
-        update = dtheta + a_t[idx] * T
-        result = 2.0 * update / self.alpha
-        
-        return result
+        T = m[j] / (v_sqrt[j] + eps_t[j])  # m/(sqrt(v)+eps)
+        return - 2.0 * (dtheta + eta_t[j] * T) / self.alpha
     
     def solve(self):
         """
