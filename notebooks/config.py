@@ -1,9 +1,9 @@
-a = 1
+c_value = 4
 lr = 0.001
 beta1 = 0.99
 beta2 = 0.999
 epsilon = 1e-8
-epochs = int(6e3)
-initial_theta = -2.0
-initial_velocity = -1.0
+epochs = int(3e3)
+initial_theta = 2.0
+initial_velocity = 1.0
 quad_order = 25

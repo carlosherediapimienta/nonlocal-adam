@@ -8,7 +8,7 @@ def dL_rosenbrock_1d(
 ) -> np.ndarray:
     """
     Gradient of Rosenbrock 1D:
-    L(x) = (1 - x)^2 + a*(x^2 - 1)^2
+    L(x) = (1 - x)^2 + c*(x^2 - 1)^2
     """
-    (a,) = function_parameters
-    return 2*(x - 1) + 4*a*x*(x**2 - 1)
+    (c,) = function_parameters
+    return 2*(x - 1) + 4*c*x*(x**2 - 1)
