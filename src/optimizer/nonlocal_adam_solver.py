@@ -164,8 +164,8 @@ class NonlocalSolverMomentumAdam:
             f_m = lambda tau: self.K1(t - tau) * g_fun(tau)
             f_v = lambda tau: self.K2(t - tau) * g_fun(tau)**2
             
-            m_k = self.lam1 * self.integrator.integrate(f_m, self.alpha, t)
-            v_k = self.lam2 * self.integrator.integrate(f_v, self.alpha, t)
+            m_k = self.lam1 * self.integrator.integrate(f_m, self.t0, t)
+            v_k = self.lam2 * self.integrator.integrate(f_v, self.t0, t)
 
             diag = None
             if not np.isfinite(m_k) or not np.isfinite(v_k) or np.abs(m_k) > 1e10 or np.abs(v_k) > 1e10:
@@ -233,7 +233,7 @@ class NonlocalSolverMomentumAdam:
         return (m, v_sqrt, eta_t, eps_t)
 
     def _rhs_first_order(self, y_prev, idx: int,  m: np.ndarray, v_sqrt: np.ndarray, 
-             a_t: np.ndarray, eps_t: np.ndarray) -> float:
+             eta_t: np.ndarray, eps_t: np.ndarray) -> float:
         """
         Right-hand side for the explicit Euler step:
 
@@ -247,7 +247,7 @@ class NonlocalSolverMomentumAdam:
             Samples of the first moment along the grid.
         v_sqrt : np.ndarray
             Samples of sqrt(second moment) along the grid.
-        a_t : np.ndarray
+        eta_t : np.ndarray
             Bias-correction factor alpha(t) along the grid.
         eps_t : np.ndarray
             Scaled eps(t) along the grid.
@@ -259,7 +259,7 @@ class NonlocalSolverMomentumAdam:
         """
 
         T = m[idx] / (v_sqrt[idx] + eps_t[idx])
-        return - a_t[idx] * T
+        return - eta_t[idx] * T
 
     def _rhs_second_order(self, z_prev, idx: int,
                   m: np.ndarray, v_sqrt: np.ndarray,
