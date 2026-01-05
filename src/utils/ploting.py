@@ -286,6 +286,7 @@ class AdamPlotter:
             ax02 = fig.add_subplot(gs[0, 2])
             if self.theta_ddot_history is not None:
                 ax02.plot(self.iterations, self.theta_ddot_history, linewidth=2, color='C3')
+                ax02.set_yscale('symlog', linthresh=1e-1)
                 ax02.axhline(y=0, color='gray', linestyle='--', alpha=0.5)
             ax02.set_xlabel('Iteration', fontsize=11)
             ax02.set_ylabel('d²θ/dt²', fontsize=11)

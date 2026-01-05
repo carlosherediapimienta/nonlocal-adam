@@ -267,7 +267,7 @@ class NonlocalSolverMomentumAdam:
 
         theta, dtheta = z_prev[0], z_prev[1]
 
-        j = idx + 1
+        j = idx + 5
         if j >= len(m):
             j = len(m) - 1
 

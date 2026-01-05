@@ -82,7 +82,7 @@ class AlgorithmIDE:
         self.verbose = verbose
 
         self.t0, self.tf = t_span
-        self.t = np.arange(self.t0, self.tf, self.alpha, dtype=DTYPE)
+        self.t = np.arange(self.t0, self.tf, (self.alpha/5), dtype=DTYPE)
 
         self.smoothing = DTYPE(0.5)
         self.smooth_max = DTYPE(0.9999)

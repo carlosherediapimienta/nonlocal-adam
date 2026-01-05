@@ -1,5 +1,4 @@
 import numpy as np
-from scipy.ndimage import minimum_filter1d, maximum_filter1d
 
 class ConditionVPositive:
     def __init__(self,  alpha: float):

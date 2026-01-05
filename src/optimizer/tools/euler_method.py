@@ -39,7 +39,7 @@ class EulerMethod:
         for i in range(n - 1):
             dy = rhs(y[i], i, *func_rhs)
             dy_hist[i] = dy
-            y[i + 1] = y[i] + alpha * dy
+            y[i + 1] = y[i] + (alpha/5) * dy
                 
         dy_hist[-1] = rhs(y[-1], n - 1, *func_rhs)
         
