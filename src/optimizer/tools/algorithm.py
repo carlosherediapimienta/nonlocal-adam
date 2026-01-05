@@ -91,7 +91,7 @@ class AlgorithmIDE:
                                       1_000, dtype=DTYPE)
         self._max_inc_hit = False
 
-        self.global_tol = 1e-4
+        self.global_tol = 1e-5
         self.max_iteration = int(3e3)
 
     def _create_system_rhs(self):
