@@ -127,7 +127,7 @@ class AlgorithmIDE:
     def _step(self, y_current: np.ndarray) -> np.ndarray:
         """Run one full pass of the explicit Euler integrator."""
         func_rhs = self.build_func_rhs(y_current)
-        y_next = self._integrate(self.alpha, self.y0, self.t, self.rhs, func_rhs)
+        y_next, _ = self._integrate(self.alpha, self.y0, self.t, self.rhs, func_rhs)
         err = self._global_error(y_current, y_next)
         return y_next, err
 
@@ -157,7 +157,8 @@ class AlgorithmIDE:
         # Baseline solution without the non-local term
         zeros = np.zeros_like(self.t)
         func_rhs_zero = (zeros, zeros, np.ones_like(self.t), 1e-8*np.ones_like(self.t))
-        y_cur = self._integrate(
+
+        y_cur, _ = self._integrate(
             alpha=self.alpha,
             y0=self.y0,
             t_vec=self.t,
@@ -228,4 +229,38 @@ class AlgorithmIDE:
 
         self.y = y_new
         self.global_error = err
-        return self.t, y_new
+        
+        func_rhs = self.build_func_rhs(y_new)
+        y_final, dy_final = self._integrate(
+            alpha=self.alpha,
+            y0=self.y0,
+            t_vec=self.t,
+            rhs=self.rhs,
+            func_rhs=func_rhs
+        )
+
+        if self.equation_order == 2:
+            # Segundo orden: agregar aceleración
+            if self.verbose:
+                print("Agregando aceleración para segundo orden...")
+            
+            acceleration = dy_final[:, 1]  # d²θ/dt²
+            y_extended = np.column_stack([y_new, acceleration])
+            
+            if self.verbose:
+                print(f"Shape: {y_extended.shape} [θ, dθ/dt, d²θ/dt²]")
+            
+            return self.t, y_extended
+        else:
+            # Primer orden: agregar velocidad
+            if self.verbose:
+                print("Agregando velocidad para primer orden...")
+            
+            # dy_final es escalar: dθ/dt
+            velocity = dy_final
+            y_extended = np.column_stack([y_new, velocity])
+            
+            if self.verbose:
+                print(f"Shape: {y_extended.shape} [θ, dθ/dt]")
+            
+            return self.t, y_extended
