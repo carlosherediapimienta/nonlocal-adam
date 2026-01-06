@@ -356,7 +356,7 @@ class AdamPlotter:
             ax21.set_yscale('log')
             ax21.grid(True, alpha=0.3)
             
-            plt.suptitle('Complete Optimization Analysis (Second Order)', 
+            plt.suptitle('Complete Optimization Analysis', 
                         fontsize=16, fontweight='bold', y=0.996)  # ← y ajustado
             
             return fig, fig.axes
