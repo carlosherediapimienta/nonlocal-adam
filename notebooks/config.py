@@ -5,5 +5,5 @@ beta2 = 0.2
 epsilon = 1e-8
 epochs = int(2.7e2)
 initial_theta = -1.5
-initial_velocity = 0.0
+initial_velocity = 1.0
 quad_order = int(1e3)
