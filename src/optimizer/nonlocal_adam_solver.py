@@ -49,7 +49,7 @@ class NonlocalSolverMomentumAdam:
             self.equation_order = 2
             self.y0 = y0_arr
         else:
-            raise ValueError(f"y0 debe ser escalar o vector de 2 elementos, got shape {y0_arr.shape}")
+            raise ValueError(f"y0 must be scalar or vector of 2 elements, got shape {y0_arr.shape}")
         
         self.t0, self.tf = t_span
         self.alpha = DTYPE(alpha)
@@ -61,12 +61,12 @@ class NonlocalSolverMomentumAdam:
             self.K1 = lambda s: K_beta_first_order(s, self.beta1, self.alpha)
             self.K2 = lambda s: K_beta_first_order(s, self.beta2, self.alpha)
             if verbose:
-                print(f"First order equation --> using exponential kernels")
+                print(f"First order equation --> using exponential kernels.")
         else:
             self.K1 = lambda s: K_beta_second_order(s, self.beta1, self.alpha)
             self.K2 = lambda s: K_beta_second_order(s, self.beta2, self.alpha)
             if verbose:
-                print(f"Second order equation --> using sinh/sin kernels")
+                print(f"Second order equation --> using sinh/sin kernels.")
         
         
         # Bias-correction factors (continuous-time analogs)
@@ -127,7 +127,7 @@ class NonlocalSolverMomentumAdam:
             print(f"\n{'='*60}")
             print(f"Building functional RHS (iteration {getattr(self.solver, 'iteration', 0)})...")
             print(f"{'='*60}")
-            print(f"¿No finitos en y?: {~np.isfinite(y).all()} (NaN: {np.isnan(y).any()}, Inf: {np.isinf(y).any()})")
+            print(f"No finite in y?: {~np.isfinite(y).all()} (NaN: {np.isnan(y).any()}, Inf: {np.isinf(y).any()})")
 
         if self.equation_order == 2:
             y_pos = y[:, 0]
@@ -137,18 +137,18 @@ class NonlocalSolverMomentumAdam:
         interp = self._interp(y_pos)
 
         if self.verbose:
-            print(f"\n--- DEBUG interpolador ---")
+            print(f"\n--- DEBUG interpolator ---")
             print(f"y_pos shape: {y_pos.shape}, dtype: {y_pos.dtype}")
             print(f"y_pos[:5]: {y_pos[:5]}")
-            print(f"y_pos finitos: {np.isfinite(y_pos).all()}")
+            print(f"y_pos finite: {np.isfinite(y_pos).all()}")
 
             if not np.isfinite(y_pos).all():
                 bad_idx = np.where(~np.isfinite(y_pos))[0]
                 first_bad = bad_idx[0]
-                print(f"  ⚠️ PRIMER NO-FINITO en idx={first_bad}, t={self.t[first_bad]:.6f}")
+                print(f"  ⚠️ FIRST NON-FINITE at idx={first_bad}, t={self.t[first_bad]:.6f}")
                 print(f"    y_pos[{first_bad-2}:{first_bad+3}] = {y_pos[max(0,first_bad-2):first_bad+3]}")
             
-            print(f"--- FIN DEBUG ---\n")
+            print(f"--- END DEBUG ---\n")
 
         def g_fun(tau):
             return self.dL(interp(tau)) 
@@ -193,11 +193,11 @@ class NonlocalSolverMomentumAdam:
         ##
 
         if self.verbose and diagnostics:
-            print(f"\n{len(diagnostics)} problemas detectados en momentos:")
+            print(f"\n{len(diagnostics)} problems detected in moments:")
             for i, d in enumerate(diagnostics[:5]):
                 print(f"t={d['t']:.6f}: m={d['m_k']:.3e}, v={d['v_k']:.3e}, g(t)={d['g(t)']:.3e}")
             if len(diagnostics) > 5:
-                print(f"... y {len(diagnostics)-5} más")
+                print(f"... and {len(diagnostics)-5} more")
 
         if self.verbose:
             elapsed = time.time() - start_time

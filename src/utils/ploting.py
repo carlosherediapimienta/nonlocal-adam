@@ -28,7 +28,7 @@ class AdamPlotter:
         self.m_history = np.array(m_history)
         self.v_history = np.array(v_history)
         
-        # Sin escalamiento
+        # No scaling
         self.theta_dot_history = np.array(theta_dot_history) if theta_dot_history is not None else None
         self.theta_ddot_history = np.array(theta_ddot_history) if theta_ddot_history is not None else None
         
@@ -76,15 +76,15 @@ class AdamPlotter:
 
     def __plot_phase_diagram__(self, figsize=(8, 8)):
         """
-        Diagrama de fase: θ vs dθ/dt
-        Muestra la trayectoria en el espacio de estados con código de colores temporal.
+        Phase diagram: θ vs dθ/dt
+        Shows the trajectory in the state space with temporal color code.
         """
         if not self.is_second_order:
             raise ValueError("Phase diagram requires second-order dynamics (velocity)")
         
         fig, ax = plt.subplots(figsize=figsize)
         
-        # Plot con código de colores temporal
+        # Plot with temporal color code
         scatter = ax.scatter(
             self.theta_history, 
             self.theta_dot_history, 
@@ -94,17 +94,17 @@ class AdamPlotter:
             alpha=0.6
         )
         
-        # Conectar puntos con líneas
+        # Connect points with lines
         ax.plot(self.theta_history, self.theta_dot_history, 
                 'k-', alpha=0.2, linewidth=0.5)
         
-        # Punto inicial y final
+        # Initial and final point
         ax.plot(self.theta_history[0], self.theta_dot_history[0], 
                 'go', markersize=10, label='Start', zorder=5)
         ax.plot(self.theta_history[-1], self.theta_dot_history[-1], 
                 'r*', markersize=15, label='End', zorder=5)
         
-        # Referencias
+        # References
         ax.axhline(y=0, color='gray', linestyle='--', alpha=0.3)
         ax.axvline(x=0, color='gray', linestyle='--', alpha=0.3)
         
@@ -122,27 +122,27 @@ class AdamPlotter:
     
     def __plot_state_variables__(self, figsize=(12, 9)):
         """
-        Panel con θ, dθ/dt, y d²θ/dt² en subplots separados.
+        Panel with θ, dθ/dt, and d²θ/dt² in separate subplots.
         """
         if not self.is_second_order:
             raise ValueError("State variables plot requires second-order dynamics")
         
         fig, axes = plt.subplots(3, 1, figsize=figsize, sharex=True)
         
-        # Position θ
+        # Theta θ
         axes[0].plot(self.iterations, self.theta_history, linewidth=2, color='C0')
         axes[0].axhline(y=0, color='gray', linestyle='--', alpha=0.5)
         axes[0].set_ylabel('Position θ', fontsize=11)
         axes[0].set_title('Evolution of State Variables', fontsize=14, fontweight='bold')
         axes[0].grid(True, alpha=0.3)
         
-        # Velocity dθ/dt
+        # Velocity dθ/dt (dot theta)
         axes[1].plot(self.iterations, self.theta_dot_history, linewidth=2, color='C1')
         axes[1].axhline(y=0, color='gray', linestyle='--', alpha=0.5)
         axes[1].set_ylabel('Velocity dθ/dt', fontsize=11)
         axes[1].grid(True, alpha=0.3)
         
-        # Acceleration d²θ/dt²
+        # Acceleration d²θ/dt² (ddot theta)
         if self.theta_ddot_history is not None:
             axes[2].plot(self.iterations, self.theta_ddot_history, linewidth=2, color='C3')
             axes[2].axhline(y=0, color='gray', linestyle='--', alpha=0.5)
@@ -155,8 +155,8 @@ class AdamPlotter:
     
     def __plot_kinetic_energy__(self, figsize=(10, 6)):
         """
-        Gráfica de "energía cinética": (1/2)(dθ/dt)²
-        Útil para ver cómo el sistema se "enfría".
+        Kinetic energy plot: (1/2)(dθ/dt)²
+        Useful to see how the system "cools down".
         """
         if not self.is_second_order:
             raise ValueError("Kinetic energy requires velocity")
@@ -177,30 +177,30 @@ class AdamPlotter:
     
     def __plot_dynamics_comparison__(self, figsize=(14, 10)):
         """
-        Comparación completa: estado, momentos y dinámicas en un solo panel.
-        Panel 2x3 con toda la información relevante.
+        Complete comparison: state, moments and dynamics in a single panel.
+        Panel 2x3 with all relevant information.
         """
         if not self.is_second_order:
             raise ValueError("Dynamics comparison requires second-order system")
         
         fig, axes = plt.subplots(2, 3, figsize=figsize)
         
-        # Row 1: Estado completo
-        # θ
+        # Row 1: Complete state
+        # Theta θ
         axes[0, 0].plot(self.iterations, self.theta_history, linewidth=2, color='C0')
         axes[0, 0].axhline(y=0, color='gray', linestyle='--', alpha=0.3)
         axes[0, 0].set_ylabel('θ', fontsize=11)
         axes[0, 0].set_title('Position', fontsize=12, fontweight='bold')
         axes[0, 0].grid(True, alpha=0.3)
         
-        # dθ/dt
+        # dθ/dt (dot theta)
         axes[0, 1].plot(self.iterations, self.theta_dot_history, linewidth=2, color='C1')
         axes[0, 1].axhline(y=0, color='gray', linestyle='--', alpha=0.3)
         axes[0, 1].set_ylabel('dθ/dt', fontsize=11)
         axes[0, 1].set_title('Velocity', fontsize=12, fontweight='bold')
         axes[0, 1].grid(True, alpha=0.3)
         
-        # d²θ/dt²
+        # d²θ/dt² (ddot theta)
         if self.theta_ddot_history is not None:
             axes[0, 2].plot(self.iterations, self.theta_ddot_history, linewidth=2, color='C3')
             axes[0, 2].axhline(y=0, color='gray', linestyle='--', alpha=0.3)
@@ -208,8 +208,8 @@ class AdamPlotter:
         axes[0, 2].set_title('Acceleration', fontsize=12, fontweight='bold')
         axes[0, 2].grid(True, alpha=0.3)
         
-        # Row 2: Análisis
-        # Diagrama de fase (mini)
+        # Row 2: Analysis
+        # Phase diagram (mini)
         axes[1, 0].scatter(self.theta_history, self.theta_dot_history, 
                           c=self.iterations, cmap='viridis', s=10, alpha=0.5)
         axes[1, 0].plot(self.theta_history[0], self.theta_dot_history[0], 
@@ -222,7 +222,7 @@ class AdamPlotter:
         axes[1, 0].grid(True, alpha=0.3)
         axes[1, 0].legend(fontsize=9)
         
-        # Energía cinética
+        # Kinetic energy
         kinetic_energy = 0.5 * self.theta_dot_history**2
         axes[1, 1].plot(self.iterations, kinetic_energy, linewidth=2, color='C4')
         axes[1, 1].set_xlabel('Iteration', fontsize=11)
@@ -231,7 +231,7 @@ class AdamPlotter:
         axes[1, 1].set_yscale('log')
         axes[1, 1].grid(True, alpha=0.3)
         
-        # Momentos (m y v)
+        # Moments (m and v)
         ax_twin = axes[1, 2].twinx()
         axes[1, 2].plot(self.iterations, self.m_history, linewidth=2, 
                        color='C1', label='m (1st moment)', alpha=0.7)
@@ -256,21 +256,21 @@ class AdamPlotter:
         Layout adapts based on whether it's first or second order.
         """
         if self.is_second_order:
-            # Second order: Panel con más espacio vertical
+            # Second order: Panel with more vertical space
             if figsize is None:
-                figsize = (18, 14)  # ← Aumentado altura
+                figsize = (18, 14)  # ← Increased height
             
             fig = plt.figure(figsize=figsize)
-            gs = fig.add_gridspec(3, 3, hspace=0.50, wspace=0.35)  # ← hspace aumentado
+            gs = fig.add_gridspec(3, 3, hspace=0.50, wspace=0.35)  # Increased hspace
             
-            # ============ FILA 1: Variables de estado ============
+            # ============ ROW 1: State variables ============
             # θ (Position)
             ax00 = fig.add_subplot(gs[0, 0])
             ax00.plot(self.iterations, self.theta_history, linewidth=2, color='C0')
             ax00.axhline(y=0, color='gray', linestyle='--', alpha=0.5)
             ax00.set_xlabel('Iteration', fontsize=11)
             ax00.set_ylabel('θ', fontsize=11)
-            ax00.set_title('Position θ', fontsize=12, fontweight='bold', pad=10)  # ← pad añadido
+            ax00.set_title('Position θ', fontsize=12, fontweight='bold', pad=10)  # Added pad
             ax00.grid(True, alpha=0.3)
             
             # dθ/dt (Velocity)
@@ -293,7 +293,7 @@ class AdamPlotter:
             ax02.set_title('Acceleration', fontsize=12, fontweight='bold', pad=10)
             ax02.grid(True, alpha=0.3)
             
-            # ============ FILA 2: Momentos Adam ============
+            # ============ ROW 2: Adam moments ============
             # m (First moment)
             ax10 = fig.add_subplot(gs[1, 0])
             ax10.plot(self.iterations, self.m_history, linewidth=2, color='C1')
@@ -323,8 +323,8 @@ class AdamPlotter:
             ax12.grid(True, alpha=0.3)
             ax12.set_yscale('log')
             
-            # ============ FILA 3: Análisis dinámico ============
-            # Phase diagram (ocupa 2 columnas)
+            # ============ ROW 3: Dynamic analysis ============
+            # Phase diagram (occupies 2 columns)
             ax20 = fig.add_subplot(gs[2, :2])
             scatter = ax20.scatter(self.theta_history, self.theta_dot_history, 
                                 c=self.iterations, cmap='viridis', s=20, alpha=0.6)
@@ -342,11 +342,11 @@ class AdamPlotter:
             ax20.legend(fontsize=10, loc='best')
             ax20.grid(True, alpha=0.3)
             
-            # Colorbar para phase diagram
+            # Colorbar for phase diagram
             cbar = plt.colorbar(scatter, ax=ax20)
             cbar.set_label('Iteration', fontsize=10)
             
-            # Kinetic energy (ocupa 1 columna)
+            # Kinetic energy (occupies 1 column)
             ax21 = fig.add_subplot(gs[2, 2])
             kinetic_energy = 0.5 * self.theta_dot_history**2
             ax21.plot(self.iterations, kinetic_energy, linewidth=2, color='C5')
@@ -357,7 +357,7 @@ class AdamPlotter:
             ax21.grid(True, alpha=0.3)
             
             plt.suptitle('Complete Optimization Analysis', 
-                        fontsize=16, fontweight='bold', y=0.996)  # ← y ajustado
+                        fontsize=16, fontweight='bold', y=0.996)  # Adjusted y
             
             return fig, fig.axes
             
@@ -376,7 +376,7 @@ class AdamPlotter:
             axes[0, 0].set_title('Evolution of θ', fontsize=12, fontweight='bold')
             axes[0, 0].grid(True, alpha=0.3)
             
-            # Primer momento m
+            # First moment m
             axes[0, 1].plot(self.iterations, self.m_history, linewidth=2, color='C1')
             axes[0, 1].axhline(y=0, color='gray', linestyle='--', alpha=0.5)
             axes[0, 1].set_xlabel('Iteration', fontsize=11)
@@ -384,7 +384,7 @@ class AdamPlotter:
             axes[0, 1].set_title('Evolution of the first moment m', fontsize=12, fontweight='bold')
             axes[0, 1].grid(True, alpha=0.3)
             
-            # Segundo momento v
+            # Second moment v
             axes[1, 0].plot(self.iterations, self.v_history, linewidth=2, color='C2')
             axes[1, 0].axhline(y=0, color='gray', linestyle='--', alpha=0.5)
             axes[1, 0].set_xlabel('Iteration', fontsize=11)
