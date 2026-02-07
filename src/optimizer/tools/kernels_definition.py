@@ -6,11 +6,11 @@ def K_beta_second_order(
     alpha: float,
 ) -> np.ndarray:
     r"""
-    Closed form for K_beta(s),  s ≥ 0:
+    Closed form for K_beta(s),  s >= 0:
     Parameters
     ----------
     s : np.ndarray
-        Nonnegative argument(s) s ≥ 0.
+        Nonnegative argument(s) s >= 0.
     beta : float
         Parameter beta.
     alpha : float
@@ -54,11 +54,11 @@ def K_beta_first_order(
     alpha: float,
 ) -> np.ndarray:
     r"""
-    Closed form for K_beta(s),  s ≥ 0.
+    Closed form for K_beta(s),  s >= 0.
     Parameters
     ----------
     s : np.ndarray
-        Nonnegative argument(s) s ≥ 0.
+        Nonnegative argument(s) s >= 0.
     beta : float
         Parameter beta.
     alpha : float

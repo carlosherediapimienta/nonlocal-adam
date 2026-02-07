@@ -11,16 +11,16 @@ class ConditionVPositive:
             return out
 
         if len(r) != len(t):
-            raise ValueError(f"r y t deben tener la misma longitud: len(r)={len(r)} vs len(t)={len(t)}")
+            raise ValueError(f"r and t must have the same length: len(r)={len(r)} vs len(t)={len(t)}")
         
         rho = np.sqrt(1.0 - 2.0 * beta2)          
         q = np.exp(-np.pi / rho)
 
-        # Global + causal: min/max accumulated over [0..i]
+        # Global + causal: min/max accumulated over [0..i] (cumulative min/max)
         rmin = np.minimum.accumulate(r)
         rmax = np.maximum.accumulate(r)
 
-        # Violation of the lemma criterion: rmin < q * rmax
+        # Violation of the lemma criterion: rmin < q * rmax (minimum < q * maximum)
         return (rmin < q * rmax)
 
 

@@ -11,9 +11,9 @@ class IntegrationQuadrature:
     n : int
         Quadrature order (number of nodes/weights).
     tol : float, optional
-        Threshold below which intervals are treated as zero-length. Default: 1e-12
+        Threshold below which intervals are treated as zero-length. Default is 1e-12.
     verbose : bool, optional
-        If True, prints intermediate results. Default: False
+        If True, prints intermediate results. Default is False.
     """
     def __init__(self, n: int, tol: float = 1e-12, verbose: bool = False):
         self.n = n
@@ -22,7 +22,7 @@ class IntegrationQuadrature:
     
     def integrate(self, fun: Callable, lo: float, hi: float) -> float:
         """
-        Integrate function over a single interval [lo, hi].
+        Integrates function over a single interval [lo, hi].
         
         Parameters
         ----------

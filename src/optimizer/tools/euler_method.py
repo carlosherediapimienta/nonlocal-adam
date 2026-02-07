@@ -1,14 +1,14 @@
 """
 Explicit Euler methods for ODEs: y' = f(...) or y'' = f(...).
 """
-from typing import Callable, Tuple, Any, Union, Literal
+from typing import Callable, Tuple, Any, Union
 import numpy as np
 
 DTYPE = np.float64
 
 class EulerMethod:
     """
-    Integrador Euler explícito para EDOs.
+    Euler Integrator for ODEs.
     """
     
     def __init__(self):
@@ -25,7 +25,7 @@ class EulerMethod:
         is_scalar = np.ndim(y0) == 0
         n = len(t_vec)
         
-        # Inicializar
+        # Initialize
         if is_scalar:
             y = np.zeros(n, dtype=DTYPE)
             y[0] = DTYPE(y0)
@@ -35,7 +35,7 @@ class EulerMethod:
             y[0] = np.asarray(y0, dtype=DTYPE)
             dy_hist = np.zeros((n, len(y0)), dtype=DTYPE)
         
-        # Integrar
+        # Integrate
         for i in range(n - 1):
             dy = rhs(y[i], i, *func_rhs)
             dy_hist[i] = dy
@@ -52,25 +52,25 @@ class EulerMethod:
                   rhs: Callable,
                   func_rhs: Tuple[Any, ...] = ()) -> np.ndarray:
         """
-        Integra y' = rhs(t, y, ...) sobre t_vec.
+        Integrates y' = rhs(t, y, ...) over t_vec.
         
         Parameters
         ----------
         alpha : float
-            Paso temporal.
+            Time step.
         y0 : float or array
-            Condición inicial (escalar para y', vector [y, y'] para y'').
+            Initial condition (scalar for y', vector [y, y'] for y'').
         t_vec : ndarray
-            Tiempos de evaluación.
+            Evaluation times.
         rhs : Callable
-            Lado derecho: rhs(y, idx, *func_rhs) -> dy/dt
+            Right-hand side: rhs(y, idx, *func_rhs) -> dy/dt
         func_rhs : tuple
-            Funciones extra para rhs.
+            Extra functions for rhs.
         
         Returns
         -------
-        (y, dy) : Tupla de ndarrays
-            Devuelve estado y derivadas.
+        (y, dy) : tuple of ndarrays
+            Returns state and derivatives.
         """
         return self._forward(alpha, y0, t_vec, rhs, func_rhs)
     
