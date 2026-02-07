@@ -108,7 +108,7 @@ class AlgorithmIDE:
     def _integrate(self, alpha: float, y0, t_vec: np.ndarray, 
                    rhs: Callable, func_rhs: Tuple[Any, ...]) -> np.ndarray:
         """
-        Integra usando el método Euler configurado. 
+        Integrates using the configured Euler method. 
         """
         return self.euler_method.solve(alpha=alpha, y0=y0, t_vec=t_vec, rhs=rhs, func_rhs=func_rhs)
 
@@ -240,9 +240,9 @@ class AlgorithmIDE:
         )
 
         if self.equation_order == 2:
-            # Segundo orden: agregar aceleración
+            # Second order: add acceleration
             if self.verbose:
-                print("Agregando aceleración para segundo orden...")
+                print("Adding acceleration for second order...")
             
             acceleration = dy_final[:, 1]  # d²θ/dt²
             y_extended = np.column_stack([y_new, acceleration])
@@ -252,11 +252,11 @@ class AlgorithmIDE:
             
             return self.t, y_extended
         else:
-            # Primer orden: agregar velocidad
+            # First order: add velocity
             if self.verbose:
-                print("Agregando velocidad para primer orden...")
+                print("Adding velocity for first order...")
             
-            # dy_final es escalar: dθ/dt
+            # dy_final is scalar: dθ/dt
             velocity = dy_final
             y_extended = np.column_stack([y_new, velocity])
             
